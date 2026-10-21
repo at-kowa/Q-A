@@ -53,6 +53,22 @@
   <div class="notice">テスト中のため、<strong>社内情報・個人情報（名前・部署・システム名の詳細など）は書かないでください。</strong>練習用の内容だけを入力してください。</div>
   <div id="message" class="message"></div>
 
+  <!-- ログイン -->
+  <section id="login" hidden>
+    <form class="card" id="login-form" style="max-width: 360px">
+      <label for="login-id">ID</label>
+      <input id="login-id" name="id" autocomplete="username" required>
+      <label for="login-password">パスワード</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      <div style="margin-top: 12px"><button class="primary" type="submit">ログイン</button></div>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+  <div class="row" style="justify-content: flex-end; margin-bottom: 8px">
+    <button id="logout" type="button">ログアウト</button>
+  </div>
+
   <nav class="tabs">
     <button data-tab="ask" class="active">質問する</button>
     <button data-tab="faq">よくある質問</button>
@@ -81,7 +97,7 @@
     <div id="faq-list"></div>
   </section>
 
-  <!-- 管理（テスト中は全員が使える） -->
+  <!-- 管理（テスト中はログインした全員が使える） -->
   <section id="tab-manage" hidden>
     <div class="toolbar">
       <label style="margin: 0">状態：
@@ -97,6 +113,7 @@
     </div>
     <div id="manage-list"></div>
   </section>
+  </div>
 </main>
 
 <script src="config.js"></script>
@@ -122,6 +139,50 @@
     throw new Error("config.js missing");
   }
   const db = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
+
+  // ログイン
+  // supabase のアカウントはメールアドレス形式が必要なため、入力された ID に固定の末尾を付けて使う。
+  // 実在しないドメイン（example.com）なので、個人のメールアドレスは保存しない。
+  const LOGIN_DOMAIN = "@qbox.example.com";
+  const loginEl = document.getElementById("login");
+  const appEl = document.getElementById("app");
+
+  async function showByMembership() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) {
+      appEl.hidden = true;
+      loginEl.hidden = false;
+      return;
+    }
+    // 許可リスト（qbox_members）に登録されたアカウントだけが使える
+    const { data, error } = await db.from("qbox_members").select("user_id").eq("user_id", session.user.id).maybeSingle();
+    if (error || !data) {
+      await db.auth.signOut();
+      appEl.hidden = true;
+      loginEl.hidden = false;
+      return showMessage("このアカウントには利用の許可がありません。");
+    }
+    clearMessage();
+    loginEl.hidden = true;
+    appEl.hidden = false;
+  }
+
+  document.getElementById("login-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    const id = f.id.value.trim().toLowerCase();
+    const { error } = await db.auth.signInWithPassword({ email: id + LOGIN_DOMAIN, password: f.password.value });
+    if (error) return showMessage("ID またはパスワードが違います。");
+    f.password.value = "";
+    await showByMembership();
+  };
+
+  document.getElementById("logout").onclick = async () => {
+    await db.auth.signOut();
+    await showByMembership();
+  };
+
+  showByMembership();
 
   function el(tag, props = {}, children = []) {
     const node = document.createElement(tag);
