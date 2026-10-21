@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>情シス質問箱</title>
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #fff; --text: #1f2328; --muted: #656d76;
+      --line: #d0d7de; --accent: #0969da; --danger: #cf222e; --warn-bg: #fff8c5;
+      --new: #ddf4ff; --in_progress: #fff1c2; --answered: #d4f4dd;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.6; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .lead { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+    .notice { background: var(--warn-bg); border: 1px solid #d4a72c; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 14px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .tabs button { border: none; background: none; padding: 8px 16px; cursor: pointer; font: inherit; color: var(--muted); border-bottom: 2px solid transparent; }
+    .tabs button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: bold; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+    input, select, textarea, button { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+    input, textarea { width: 100%; }
+    textarea { resize: vertical; }
+    button { cursor: pointer; background: var(--card); }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.danger { color: var(--danger); }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px; background: var(--line); }
+    .badge.status-new { background: var(--new); }
+    .badge.status-in_progress { background: var(--in_progress); }
+    .badge.status-answered { background: var(--answered); }
+    .meta { color: var(--muted); font-size: 12px; }
+    .q-title { font-weight: bold; margin: 4px 0; }
+    .q-body, .q-answer { white-space: pre-wrap; margin: 4px 0; }
+    .q-answer { border-left: 3px solid var(--accent); padding-left: 8px; }
+    details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
+    .message { padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; display: none; }
+    .message.error { display: block; background: #ffebe9; color: var(--danger); }
+    .message.ok { display: block; background: var(--answered); }
+    .empty { color: var(--muted); text-align: center; padding: 24px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>情シス質問箱</h1>
+  <p class="lead">社内システムについての質問を受け付けて、回答を共有します。</p>
+  <div class="notice">テスト中のため、<strong>社内情報・個人情報（名前・部署・システム名の詳細など）は書かないでください。</strong>練習用の内容だけを入力してください。</div>
+  <div id="message" class="message"></div>
+
+  <nav class="tabs">
+    <button data-tab="ask" class="active">質問する</button>
+    <button data-tab="faq">よくある質問</button>
+    <button data-tab="manage">管理</button>
+  </nav>
+
+  <!-- 質問する -->
+  <section id="tab-ask">
+    <form class="card" id="ask-form">
+      <label for="ask-category">カテゴリ</label>
+      <select id="ask-category" name="category"></select>
+      <label for="ask-title">件名（100文字まで）</label>
+      <input id="ask-title" name="title" maxlength="100" required>
+      <label for="ask-body">質問内容（2000文字まで）</label>
+      <textarea id="ask-body" name="body" rows="6" maxlength="2000" required></textarea>
+      <div style="margin-top: 12px"><button class="primary" type="submit">送信する</button></div>
+    </form>
+  </section>
+
+  <!-- よくある質問（公開済みのみ） -->
+  <section id="tab-faq" hidden>
+    <div class="toolbar">
+      <input id="faq-search" placeholder="キーワードで探す" style="max-width: 320px">
+      <select id="faq-category"></select>
+    </div>
+    <div id="faq-list"></div>
+  </section>
+
+  <!-- 管理（テスト中は全員が使える） -->
+  <section id="tab-manage" hidden>
+    <div class="toolbar">
+      <label style="margin: 0">状態：
+        <select id="manage-status">
+          <option value="open" selected>未回答（新着・対応中）</option>
+          <option value="all">すべて</option>
+          <option value="new">新着</option>
+          <option value="in_progress">対応中</option>
+          <option value="answered">回答済み</option>
+        </select>
+      </label>
+      <span id="manage-count" class="meta"></span>
+    </div>
+    <div id="manage-list"></div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const TABLE = "qbox_questions";
+  const CATEGORY = { pc: "パソコン", mail: "メール", account: "アカウント・パスワード", software: "ソフトウェア", printer: "プリンター", other: "その他" };
+  const STATUS = { new: "新着", in_progress: "対応中", answered: "回答済み" };
+
+  const messageEl = document.getElementById("message");
+  function showMessage(text, kind = "error") {
+    messageEl.textContent = text;
+    messageEl.className = `message ${kind}`;
+    if (kind === "ok") setTimeout(clearMessage, 4000);
+  }
+  function clearMessage() {
+    messageEl.textContent = "";
+    messageEl.className = "message";
+  }
+
+  if (!window.APP_CONFIG || window.APP_CONFIG.SUPABASE_URL.includes("xxxx")) {
+    showMessage("config.js が見つからないか、設定が書かれていません。config.example.js をコピーして config.js を作ってください。");
+    throw new Error("config.js missing");
+  }
+  const db = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.assign(node, props);
+    for (const c of children) node.append(c);
+    return node;
+  }
+  function options(labels, current, extra = []) {
+    return [...extra, ...Object.entries(labels)].map(([value, label]) =>
+      el("option", { value, textContent: label, selected: current === value }));
+  }
+  function formatDate(iso) {
+    return iso ? new Date(iso).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" }) : "";
+  }
+
+  // タブ切り替え
+  const tabs = document.querySelectorAll(".tabs button");
+  for (const btn of tabs) {
+    btn.onclick = () => {
+      tabs.forEach(b => b.classList.toggle("active", b === btn));
+      for (const name of ["ask", "faq", "manage"]) {
+        document.getElementById(`tab-${name}`).hidden = name !== btn.dataset.tab;
+      }
+      clearMessage();
+      if (btn.dataset.tab === "faq") loadFaq();
+      if (btn.dataset.tab === "manage") loadManage();
+    };
+  }
+
+  // 質問する
+  document.getElementById("ask-category").append(...options(CATEGORY, "other"));
+  document.getElementById("ask-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    const row = { category: f.category.value, title: f.title.value.trim(), body: f.body.value.trim() };
+    if (!row.title || !row.body) return;
+    const { error } = await db.from(TABLE).insert(row);
+    if (error) return showMessage("送信に失敗しました：" + error.message);
+    e.target.reset();
+    showMessage("質問を送信しました。回答されると「よくある質問」に表示されます。", "ok");
+  };
+
+  // よくある質問
+  const faqSearch = document.getElementById("faq-search");
+  const faqCategory = document.getElementById("faq-category");
+  faqCategory.append(...options(CATEGORY, "", [["", "すべてのカテゴリ"]]));
+  let faqItems = [];
+
+  async function loadFaq() {
+    const { data, error } = await db.from(TABLE).select("*")
+      .eq("is_published", true).eq("status", "answered")
+      .order("answered_at", { ascending: false });
+    if (error) return showMessage("読み込みに失敗しました：" + error.message);
+    faqItems = data;
+    renderFaq();
+  }
+
+  function renderFaq() {
+    const word = faqSearch.value.trim().toLowerCase();
+    const cat = faqCategory.value;
+    const items = faqItems.filter(q =>
+      (!cat || q.category === cat) &&
+      (!word || [q.title, q.body, q.answer].some(t => (t || "").toLowerCase().includes(word))));
+    const list = document.getElementById("faq-list");
+    list.replaceChildren();
+    if (items.length === 0) return list.append(el("div", { className: "card empty", textContent: "公開されている質問はまだありません" }));
+    for (const q of items) {
+      list.append(el("div", { className: "card" }, [
+        el("div", { className: "meta", textContent: `${CATEGORY[q.category]}　回答：${formatDate(q.answered_at)}` }),
+        el("div", { className: "q-title", textContent: "Q. " + q.title }),
+        el("div", { className: "q-body", textContent: q.body }),
+        el("div", { className: "q-answer", textContent: "A. " + (q.answer || "") }),
+      ]));
+    }
+  }
+  faqSearch.oninput = renderFaq;
+  faqCategory.onchange = renderFaq;
+
+  // 管理
+  const manageStatus = document.getElementById("manage-status");
+  manageStatus.onchange = loadManage;
+
+  async function loadManage() {
+    let query = db.from(TABLE).select("*").order("created_at", { ascending: false });
+    const s = manageStatus.value;
+    if (s === "open") query = query.neq("status", "answered");
+    else if (s !== "all") query = query.eq("status", s);
+    const { data, error } = await query;
+    if (error) return showMessage("読み込みに失敗しました：" + error.message);
+    renderManage(data);
+  }
+
+  function renderManage(items) {
+    const list = document.getElementById("manage-list");
+    document.getElementById("manage-count").textContent = `${items.length} 件`;
+    list.replaceChildren();
+    if (items.length === 0) return list.append(el("div", { className: "card empty", textContent: "該当する質問はありません" }));
+
+    for (const q of items) {
+      const statusSel = el("select", {}, options(STATUS, q.status));
+      const publishChk = el("input", { type: "checkbox", checked: q.is_published, style: "width: auto" });
+      const answerArea = el("textarea", { rows: 4, maxLength: 4000, value: q.answer || "", placeholder: "回答を入力" });
+
+      const saveBtn = el("button", { className: "primary", textContent: "保存" });
+      saveBtn.onclick = async () => {
+        const answer = answerArea.value.trim();
+        if (publishChk.checked && (statusSel.value !== "answered" || !answer)) {
+          return showMessage("公開するには、回答を入力して状態を「回答済み」にしてください。");
+        }
+        await update(q.id, { status: statusSel.value, answer: answer || null, is_published: publishChk.checked });
+      };
+
+      const delBtn = el("button", { className: "danger", textContent: "削除" });
+      delBtn.onclick = async () => {
+        if (!confirm(`「${q.title}」を削除しますか？`)) return;
+        const { error } = await db.from(TABLE).delete().eq("id", q.id);
+        if (error) return showMessage("削除に失敗しました：" + error.message);
+        showMessage("削除しました。", "ok");
+        loadManage();
+      };
+
+      list.append(el("div", { className: "card" }, [
+        el("div", { className: "row" }, [
+          el("span", { className: `badge status-${q.status}`, textContent: STATUS[q.status] }),
+          el("span", { className: "badge", textContent: CATEGORY[q.category] }),
+          q.is_published ? el("span", { className: "badge", textContent: "公開中" }) : "",
+          el("span", { className: "meta", textContent: `受付：${formatDate(q.created_at)}` }),
+        ]),
+        el("div", { className: "q-title", textContent: q.title }),
+        el("div", { className: "q-body", textContent: q.body }),
+        el("details", { open: q.status !== "answered" }, [
+          el("summary", { textContent: "回答・状態を編集" }),
+          el("label", { textContent: "回答" }),
+          answerArea,
+          el("div", { className: "row", style: "margin-top: 8px" }, [
+            el("label", { style: "margin: 0", textContent: "状態：" }), statusSel,
+            el("label", { style: "margin: 0" }, [publishChk, " よくある質問に公開する"]),
+            saveBtn, delBtn,
+          ]),
+        ]),
+      ]));
+    }
+  }
+
+  async function update(id, fields) {
+    const { error } = await db.from(TABLE).update(fields).eq("id", id);
+    if (error) return showMessage("保存に失敗しました：" + error.message);
+    showMessage("保存しました。", "ok");
+    loadManage();
+  }
+</script>
+</body>
+</html>
