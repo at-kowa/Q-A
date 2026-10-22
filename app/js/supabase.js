@@ -7,10 +7,20 @@ export const configError = !config?.SUPABASE_URL || !config?.SUPABASE_ANON_KEY |
   ? "接続先が設定されていません。app/config.example.js をコピーして app/config.js を作り、supabase の URL と anon キーを書いてください。"
   : null;
 
+// ログイン情報の更新が同時に走らないようにする順番待ち。
+// supabase-js の標準（ブラウザの navigator.locks）は、環境によってログイン状態の確認が終わらなくなることがあったため、
+// このタブの中だけで順番に処理する方式にしている。
+let lockChain = Promise.resolve();
+function inTabLock(_name, _acquireTimeout, fn) {
+  const run = lockChain.then(() => fn());
+  lockChain = run.catch(() => {});
+  return run;
+}
+
 export const db = configError
   ? null
   : window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: "qbox-v04-auth" },
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "qbox-v04-auth", lock: inTabLock },
     });
 
 /** supabase の結果からエラーを取り出して投げる（呼び出し側は try/catch で受ける） */

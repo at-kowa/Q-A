@@ -5,6 +5,7 @@ import { state } from "../state.js";
 import { ticketRepository } from "../repositories/ticketRepository.js";
 import { attachmentRepository } from "../repositories/attachmentRepository.js";
 import { responseRepository } from "../repositories/responseRepository.js";
+import { faqRepository } from "../repositories/faqRepository.js";
 import { ticketSummary } from "../components/ticketSummary.js";
 import { timeline } from "../components/timeline.js";
 import { commentForm } from "../components/commentForm.js";
@@ -174,8 +175,19 @@ export async function staffDetailView(container, params, ctx) {
     return form;
   }
 
-  // ---------- FAQ として公開（段階4で追加） ----------
-  function publishPanel() {
-    return null;
+  // ---------- 公開設定（FAQ として公開する） ----------
+  function publishPanel(ticket) {
+    const body = h("div", {}, loading());
+    faqRepository.getBySourceTicket(ticket.id).then((faq) => {
+      render(body,
+        h("p", {}, "公開設定：", faq?.is_published ? h("span", { class: "pill pill-done" }, "公開中") : h("span", { class: "pill pill-received" }, "非公開")),
+        h("p", { class: "muted small" }, "投稿者の希望：", ticket.allow_publish ? "公開されても構わない" : "希望しない"),
+        h("div", { class: "actions" },
+          faq
+            ? [h("a", { class: "btn", href: `#/faq/${faq.id}` }, "FAQ を見る"), h("a", { class: "btn", href: `#/faq-edit/${faq.id}` }, "FAQ を編集する")]
+            : h("a", { class: "btn btn-primary", href: `#/faq-edit/ticket/${ticket.id}` }, "FAQ として公開する")),
+      );
+    }).catch((err) => render(body, errorBox(err.message)));
+    return h("section", { class: "card" }, h("h2", {}, "FAQ 公開"), body);
   }
 }

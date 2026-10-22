@@ -11,6 +11,9 @@ import { ticketDetailView } from "./views/ticketDetail.js";
 import { staffListView } from "./views/staffList.js";
 import { staffDetailView } from "./views/staffDetail.js";
 import { unreadView } from "./views/unread.js";
+import { faqListView } from "./views/faqList.js";
+import { faqDetailView } from "./views/faqDetail.js";
+import { faqEditView } from "./views/faqEdit.js";
 
 const STAFF = ["staff", "admin"];
 
@@ -25,6 +28,10 @@ export function registerRoutes() {
   addRoute("/unread", unreadView, { title: "未読" });
   addRoute("/staff", staffListView, { roles: STAFF, title: "受付一覧" });
   addRoute("/staff/:id", staffDetailView, { roles: STAFF, title: "投稿の詳細（対応）" });
+  addRoute("/faq", faqListView, { title: "FAQ" });
+  addRoute("/faq/:id", faqDetailView, { title: "FAQ" });
+  addRoute("/faq-edit/ticket/:ticketId", faqEditView, { roles: STAFF, title: "FAQ として公開" });
+  addRoute("/faq-edit/:id", faqEditView, { roles: STAFF, title: "FAQ の編集" });
 }
 
 /** 未読の投稿を読み直して、ヘッダーのバッジに反映する */
