@@ -1,11 +1,18 @@
 // 画面の一覧（URL と画面の対応）
 import { addRoute } from "./router.js";
+import { state } from "./state.js";
+import { responseRepository } from "./repositories/responseRepository.js";
 import { passwordView } from "./views/password.js";
 import { homeView } from "./views/home.js";
 import { newTicketView } from "./views/newTicket.js";
 import { doneView } from "./views/done.js";
 import { myTicketsView } from "./views/myTickets.js";
 import { ticketDetailView } from "./views/ticketDetail.js";
+import { staffListView } from "./views/staffList.js";
+import { staffDetailView } from "./views/staffDetail.js";
+import { unreadView } from "./views/unread.js";
+
+const STAFF = ["staff", "admin"];
 
 export function registerRoutes() {
   addRoute("/password", passwordView, { title: "パスワード変更" });
@@ -15,7 +22,15 @@ export function registerRoutes() {
   addRoute("/done/:id", doneView, { title: "送信しました" });
   addRoute("/my", myTicketsView, { title: "自分の投稿" });
   addRoute("/my/:id", ticketDetailView, { title: "投稿の詳細" });
+  addRoute("/unread", unreadView, { title: "未読" });
+  addRoute("/staff", staffListView, { roles: STAFF, title: "受付一覧" });
+  addRoute("/staff/:id", staffDetailView, { roles: STAFF, title: "投稿の詳細（対応）" });
 }
 
-/** 未読の投稿を読み直す（段階3で実装） */
-export async function refreshUnread() {}
+/** 未読の投稿を読み直して、ヘッダーのバッジに反映する */
+export async function refreshUnread() {
+  if (!state.me) return;
+  const ids = await responseRepository.unreadTicketIds();
+  state.unread = new Set(ids.map(Number));
+  document.dispatchEvent(new CustomEvent("qbox:unread-changed"));
+}

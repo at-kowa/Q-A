@@ -59,7 +59,7 @@ export function myTicketsView(container) {
             h("td", {}, h("a", { href: `#/my/${t.id}` }, t.title)),
             h("td", {}, kindPill(t.kind)),
             h("td", {}, statusPill(t)),
-            h("td", { class: "nowrap" }, formatDateTime(t.updated_at)),
+            h("td", { class: "nowrap" }, formatDateTime(t.last_activity_at)),
             h("td", {}, unreadPill(state.unread.has(t.id))),
           ))),
       ),
@@ -71,7 +71,7 @@ export function myTicketsView(container) {
       h("a", { class: "ticket-card", href: `#/my/${t.id}` },
         h("div", { class: "meta" }, h("span", { class: "mono" }, t.ticket_no), statusPill(t), unreadPill(state.unread.has(t.id))),
         h("div", { class: "title" }, t.title),
-        h("div", { class: "meta" }, kindPill(t.kind), h("span", {}, `最終更新 ${formatDateTime(t.updated_at)}`)),
+        h("div", { class: "meta" }, kindPill(t.kind), h("span", {}, `最終更新 ${formatDateTime(t.last_activity_at)}`)),
       )));
   }
 

@@ -3,7 +3,7 @@ import { db, unwrap } from "../supabase.js";
 
 const LIST_COLUMNS =
   "id, ticket_no, kind, category_id, site_id, title, urgency, urgency_rank, status, close_reason, " +
-  "author_id, assignee_id, created_at, updated_at";
+  "author_id, assignee_id, created_at, updated_at, last_activity_at";
 const DETAIL_COLUMNS =
   "id, ticket_no, kind, category_id, site_id, location_id, location_text, title, body, occurred_at, urgency, " +
   "allow_publish, author_id, assignee_id, status, close_reason, due_date, status_changed_at, " +
@@ -50,7 +50,7 @@ export const ticketRepository = {
       .from("qbox_tickets")
       .select(LIST_COLUMNS, { count: "exact" })
       .eq("author_id", authorId)
-      .order("updated_at", { ascending: false })
+      .order("last_activity_at", { ascending: false })
       .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
     if (status === "open") query = query.neq("status", "done");
     else if (status !== "all") query = query.eq("status", status);
@@ -84,6 +84,14 @@ export const ticketRepository = {
     const { data, error, count } = await query;
     unwrap({ data, error });
     return { rows: data, count: count ?? 0 };
+  },
+
+  /** 指定した ID の投稿（未読一覧用） */
+  async listByIds(ids) {
+    if (!ids.length) return [];
+    return unwrap(
+      await db.from("qbox_tickets").select(LIST_COLUMNS).in("id", ids).order("last_activity_at", { ascending: false }),
+    );
   },
 
   /** 自動更新用：指定した ID より新しい投稿の件数と ID */
