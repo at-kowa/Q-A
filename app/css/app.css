@@ -139,7 +139,8 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent);
 /* ---------- お知らせ・エラー ---------- */
 .notice { background: var(--warn-soft); border-left: 4px solid var(--warn); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; }
 .info-box { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; }
-.error-box { background: var(--danger-soft); border-left: 4px solid var(--danger); color: var(--danger); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 12px; }
+.visually-hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.error-box { white-space: pre-line; background: var(--danger-soft); border-left: 4px solid var(--danger); color: var(--danger); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 12px; }
 .loading { color: var(--muted); }
 .empty { color: var(--muted); padding: 24px; text-align: center; }
 .toast-area { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: grid; gap: 8px; z-index: 50; width: min(92vw, 480px); }
